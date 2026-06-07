@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Test MIDI Web</title>
+</head>
+<body>
+    <h1 id="statut">En attente du MIDI Web...</h1>
+    <script>
+        navigator.requestMIDIAccess()
+        .then(onMIDISuccess, () => document.getElementById('statut').innerText = "Refusé/Non supporté");
+
+        function onMIDISuccess(midiAccess) {
+            document.getElementById('statut').innerText = "Prêt ! Jouez sur le piano.";
+            for (var input of midiAccess.inputs.values()) {
+                input.onmidimessage = getMIDIMessage;
+            }
+        }
+
+        function getMIDIMessage(midiMessage) {
+            var data = midiMessage.data;
+            var cmd = data[0] >> 4;
+            var note = data[1];
+            if (cmd === 9) { // Note ON
+                document.getElementById('statut').innerText = "Note reçue dans le HTML : " + note;
+            }
+        }
+    </script>
+</body>
+</html>
