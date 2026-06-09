@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Test MediaPipe Pose</title>
+
+<style>
+body{
+    margin:0;
+    background:#111;
+    color:white;
+    font-family:Arial,sans-serif;
+    text-align:center;
+}
+
+#container{
+    position:relative;
+    display:inline-block;
+}
+
+video,canvas{
+    width:100vw;
+    max-width:800px;
+}
+
+canvas{
+    position:absolute;
+    top:0;
+    left:0;
+}
+
+#status{
+    padding:10px;
+    font-size:20px;
+}
+</style>
+</head>
+<body>
+
+<h2>Test Détection de Posture</h2>
+
+<div id="status">Initialisation...</div>
+
+<div id="container">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+<script>
+
+const videoElement = document.getElementById("video");
+const canvasElement = document.getElementById("canvas");
+const canvasCtx = canvasElement.getContext("2d");
+const statusDiv = document.getElementById("status");
+
+function onResults(results){
+
+    canvasElement.width = videoElement.videoWidth;
+    canvasElement.height = videoElement.videoHeight;
+
+    canvasCtx.save();
+    canvasCtx.clearRect(
+        0,
+        0,
+        canvasElement.width,
+        canvasElement.height
+    );
+
+    if(results.poseLandmarks){
+
+        drawConnectors(
+            canvasCtx,
+            results.poseLandmarks,
+            POSE_CONNECTIONS,
+            {lineWidth:4}
+        );
+
+        drawLandmarks(
+            canvasCtx,
+            results.poseLandmarks,
+            {radius:5}
+        );
+
+        statusDiv.innerHTML =
+            "Posture détectée : " +
+            results.poseLandmarks.length +
+            " points";
+    }
+    else{
+        statusDiv.innerHTML =
+            "Aucune personne détectée";
+    }
+
+    canvasCtx.restore();
+}
+
+const pose = new Pose({
+    locateFile: (file) =>
+        `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+});
+
+pose.setOptions({
+    modelComplexity:1,
+    smoothLandmarks:true,
+    enableSegmentation:false,
+    minDetectionConfidence:0.5,
+    minTrackingConfidence:0.5
+});
+
+pose.onResults(onResults);
+
+navigator.mediaDevices.getUserMedia({
+    video:{
+        facingMode:"user"
+    },
+    audio:false
+})
+.then(stream=>{
+
+    videoElement.srcObject = stream;
+
+    videoElement.onloadedmetadata = ()=>{
+
+        const camera = new Camera(videoElement,{
+            onFrame: async ()=>{
+                await pose.send({
+                    image: videoElement
+                });
+            },
+            width:640,
+            height:480
+        });
+
+        camera.start();
+
+        statusDiv.innerHTML =
+            "Caméra démarrée";
+    };
+})
+.catch(err=>{
+    statusDiv.innerHTML =
+        "Erreur caméra : " + err;
+});
+
+</script>
+
+</body>
+</html>
